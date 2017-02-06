@@ -1,0 +1,125 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+This assignment makes use of data from a personal activity monitoring device. This device collects data at five-minute intervals through out the day. The data set consists of two months of data from an anonymous individual collected during the months of October and November 2012 and include the number of steps taken in five-minute intervals each day.
+
+## Loading and preprocessing the data
+
+```{r}
+data <- read.csv("activity.csv")
+summary(data)
+```
+The date is initially stored as a factor. It is converted to Date() format.
+
+Time is represented in military time intervals. To make time more readable, I have changed the class to POSIXlt through strptime() and formatted it %H:%M. Here is the resulting table:
+```{r}
+data$date <- as.Date(data$date)
+
+data$interval <- as.character(data$interval)
+for (i in 1:length(data$interval)) {
+    if (nchar(data$interval[i]) == 1){
+        data$interval[i] <- paste("000", data$interval[i], sep = "")
+    } else if (nchar(data$interval[i]) == 2){
+        data$interval[i] <- paste("00", data$interval[i], sep = "")
+    } else if (nchar(data$interval[i]) == 3){
+        data$interval[i] <- paste("0", data$interval[i], sep = "")
+    }
+}
+data$interval <- format(strptime(data$interval, format = "%H%M"), format = "%H:%M")
+
+head(data)
+```
+
+## What is mean total number of steps taken per day?
+
+To answer this question, calculate the sum of all steps taken in the data across the days spanned.
+
+```{r}
+library("dplyr")
+sumsteps <- sum(data$steps, na.rm = TRUE)
+days <- length(levels(data$date))
+```
+
+The sum of all steps taken was `r sumsteps`. And a look at the levels of factors in the date column tells us that there were `r days` days measured in the data set.  
+That makes the mean across all the days:  
+```{r}
+sumsteps / days
+```
+
+Let's take a look at groupings by each of the `r days` days.  
+
+```{r}
+avgdays <- data %>%
+    group_by(date) %>%
+    summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
+head(avgdays)
+hist(avgdays$total_steps, breaks = 20)
+```
+  
+The mean of total number of steps per day is `r mean(avgdays$total_steps, na.rm = TRUE)` and the median of the total number of steps per day is `r median(avgdays$total_steps, na.rm = TRUE)`.
+
+## What is the average daily activity pattern?
+
+Let's look at the average of each interval across all days.
+
+```{r}
+avgintervals <- data %>%
+    group_by(interval) %>%
+    summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
+head(avgintervals)
+plot.ts(avgintervals$avg_steps, xlab = "Time Intervals", ylab = "Average Steps per Day")
+
+max_intervalsteps <- avgintervals[which.max(avgintervals$avg_steps),]
+```
+
+The interval with the greatest number of steps over the course of the data set was at `r max_intervalsteps$interval` with an average of `r max_intervalsteps$avg_steps` steps.
+
+## Inputing missing values
+
+Let's start with calculating the number of missing elements in the data set.
+```{r}
+sum(is.na(data$steps))
+```
+Let's do something meaningful about these missing elements.
+
+```{r}
+data[is.na(data$steps), 'steps'] <- mean(avgintervals$avg_steps)
+sum(is.na(data$steps))
+```
+
+We took the average steps per interval of all days and replaced the NAs.
+
+```{r}
+avgdays <- data %>%
+    group_by(date) %>%
+    summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
+hist(avgdays$total_steps, breaks = 20)
+head(avgdays)
+```
+This changes the data dramatically on days that previously didn't have info as you can see.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+avgdays[,"day"] <- c(weekdays(avgdays$date))
+
+ifelse(avgdays$day == "Saturday" | avgdays$day == "Sunday", avgdays$day <- "Weekend", avgdays$day <- "Weekday")
+levels(avgdays$day)
+avgdays <- avgdays %>% group_by(day)
+table(avgdays$day)
+library(lattice)
+xyplot(avgdays$total_steps ~ avgdays$day, 
+           data = avgdays,
+           type = "l",
+           xlab = "Interval",
+           ylab = "Number of steps",
+           layout=c(1,2))
+##avgdays <- avgdays %>%
+##    group_by(day) %>%
+##    summarize(total_steps, avg_steps, median_steps)
+##hist(avgdays$total_steps, breaks = 20)
+##head(avgdays)
+```
