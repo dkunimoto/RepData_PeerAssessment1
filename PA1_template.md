@@ -1,5 +1,5 @@
 # Reproducible Research: Peer Assessment 1
-This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+This assignment makes use of data from a personal activity monitoring device. This device collects data at five-minute intervals through out the day. The data set consists of two months of data from an anonymous individual collected during the months of October and November 2012 and include the number of steps taken in five-minute intervals each day.
 
 ## Loading and preprocessing the data
 
@@ -19,11 +19,13 @@ summary(data)
 ##  Max.   :806.00   2012-10-06:  288   Max.   :2355.0  
 ##  NA's   :2304     (Other)   :15840
 ```
-Initially, time is represented in military time intervals.  
-  
-To make time more readable, I have changed the class to POSIXlt through strptime() and formatted it %H:%M. Here is the resulting table:
+The date is initially stored as a factor. It is converted to Date() format.
+
+Time is represented in military time intervals. To make time more readable, I have changed the class to POSIXlt through strptime() and formatted it %H:%M. Here is the resulting table:
 
 ```r
+data$date <- as.Date(data$date)
+
 data$interval <- as.character(data$interval)
 for (i in 1:length(data$interval)) {
     if (nchar(data$interval[i]) == 1){
@@ -35,6 +37,7 @@ for (i in 1:length(data$interval)) {
     }
 }
 data$interval <- format(strptime(data$interval, format = "%H%M"), format = "%H:%M")
+
 head(data)
 ```
 
@@ -60,11 +63,15 @@ library("dplyr")
 ```
 ## 
 ## Attaching package: 'dplyr'
-## 
+```
+
+```
 ## The following objects are masked from 'package:stats':
 ## 
 ##     filter, lag
-## 
+```
+
+```
 ## The following objects are masked from 'package:base':
 ## 
 ##     intersect, setdiff, setequal, union
@@ -75,7 +82,7 @@ sumsteps <- sum(data$steps, na.rm = TRUE)
 days <- length(levels(data$date))
 ```
 
-The sum of all steps taken was 570608. And a look at the levels of factors in the date column tells us that there were 61 days measured in the data set.  
+The sum of all steps taken was 570608. And a look at the levels of factors in the date column tells us that there were 0 days measured in the data set.  
 That makes the mean across all the days:  
 
 ```r
@@ -83,17 +90,17 @@ sumsteps / days
 ```
 
 ```
-## [1] 9354.23
+## [1] Inf
 ```
 
-Let's take a look at groupings by each of the 61 days.  
+Let's take a look at groupings by each of the 0 days.  
 
 
 ```r
-avgdata <- data %>%
+avgdays <- data %>%
     group_by(date) %>%
     summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
-head(avgdata)
+head(avgdays)
 ```
 
 ```
@@ -109,28 +116,48 @@ head(avgdata)
 ```
 
 ```r
-hist(avgdata$total_steps, breaks = 20)
+hist(avgdays$total_steps, breaks = 20)
 ```
 
-![](PeerAssessment1_files/figure-html/unnamed-chunk-5-1.png) 
+![](PA1_template_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
   
 The mean of total number of steps per day is 9354.2295082 and the median of the total number of steps per day is 10395.
 
 ## What is the average daily activity pattern?
 
+Let's look at the average of each interval across all days.
+
 
 ```r
-plot.ts(avgdata$total_steps)
+avgintervals <- data %>%
+    group_by(interval) %>%
+    summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
+head(avgintervals)
 ```
 
-![](PeerAssessment1_files/figure-html/unnamed-chunk-6-1.png) 
+```
+## Source: local data frame [6 x 4]
+## 
+##   interval total_steps avg_steps median_steps
+## 1    00:00          91 1.7169811            0
+## 2    00:05          18 0.3396226            0
+## 3    00:10           7 0.1320755            0
+## 4    00:15           8 0.1509434            0
+## 5    00:20           4 0.0754717            0
+## 6    00:25         111 2.0943396            0
+```
 
 ```r
-max_steps_date <- data[which.max(data$steps), 'date'] 
-max_steps_time <- data[which.max(data$steps), 'interval']
+plot.ts(avgintervals$avg_steps, xlab = "Time Intervals", ylab = "Average Steps per Day")
 ```
 
-On 2012-11-27 at 06:15 was when the maximum number of steps was taken during a 5 minute interval over the course of the data set.
+![](PA1_template_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
+
+```r
+max_intervalsteps <- avgintervals[which.max(avgintervals$avg_steps),]
+```
+
+The interval with the greatest number of steps over the course of the data set was at 08:35 with an average of 206.1698113 steps.
 
 ## Inputing missing values
 
@@ -147,7 +174,7 @@ Let's do something meaningful about these missing elements.
 
 
 ```r
-data[is.na(data$steps), 'steps'] <- sumsteps / days / 288
+data[is.na(data$steps), 'steps'] <- mean(avgintervals$avg_steps)
 sum(is.na(data$steps))
 ```
 
@@ -159,28 +186,93 @@ We took the average steps per interval of all days and replaced the NAs.
 
 
 ```r
-avgdata <- data %>%
+avgdays <- data %>%
     group_by(date) %>%
     summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
-hist(avgdata$total_steps, breaks = 20)
+hist(avgdays$total_steps, breaks = 20)
 ```
 
-![](PeerAssessment1_files/figure-html/unnamed-chunk-9-1.png) 
+![](PA1_template_files/figure-html/unnamed-chunk-9-1.png)<!-- -->
 
 ```r
-head(avgdata)
+head(avgdays)
 ```
 
 ```
 ## Source: local data frame [6 x 4]
 ## 
 ##         date total_steps avg_steps median_steps
-## 1 2012-10-01     9354.23  32.47996     32.47996
-## 2 2012-10-02      126.00   0.43750      0.00000
-## 3 2012-10-03    11352.00  39.41667      0.00000
-## 4 2012-10-04    12116.00  42.06944      0.00000
-## 5 2012-10-05    13294.00  46.15972      0.00000
-## 6 2012-10-06    15420.00  53.54167      0.00000
+## 1 2012-10-01    10766.19  37.38260      37.3826
+## 2 2012-10-02      126.00   0.43750       0.0000
+## 3 2012-10-03    11352.00  39.41667       0.0000
+## 4 2012-10-04    12116.00  42.06944       0.0000
+## 5 2012-10-05    13294.00  46.15972       0.0000
+## 6 2012-10-06    15420.00  53.54167       0.0000
 ```
+This changes the data dramatically on days that previously didn't have info as you can see.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+
+```r
+avgdays[,"day"] <- c(weekdays(avgdays$date))
+
+ifelse(avgdays$day == "Saturday" | avgdays$day == "Sunday", avgdays$day <- "Weekend", avgdays$day <- "Weekday")
+```
+
+```
+##  [1] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+##  [8] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [15] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [22] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [29] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [36] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [43] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [50] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday" "Weekend" "Weekend"
+## [57] "Weekday" "Weekday" "Weekday" "Weekday" "Weekday"
+```
+
+```r
+levels(avgdays$day)
+```
+
+```
+## NULL
+```
+
+```r
+avgdays <- avgdays %>% group_by(day)
+table(avgdays$day)
+```
+
+```
+## 
+## Weekday 
+##      61
+```
+
+```r
+library(lattice)
+xyplot(avgdays$total_steps ~ avgdays$day, 
+           data = avgdays,
+           type = "l",
+           xlab = "Interval",
+           ylab = "Number of steps",
+           layout=c(1,2))
+```
+
+```
+## Warning in order(as.numeric(x)): NAs introduced by coercion
+```
+
+```
+## Warning in diff(as.numeric(x[ord])): NAs introduced by coercion
+```
+
+```
+## Warning in (function (x, y, type = "p", groups = NULL, pch = if
+## (is.null(groups)) plot.symbol$pch else superpose.symbol$pch, : NAs
+## introduced by coercion
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-10-1.png)<!-- -->

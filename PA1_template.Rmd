@@ -4,7 +4,7 @@ output:
   html_document:
     keep_md: true
 ---
-This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+This assignment makes use of data from a personal activity monitoring device. This device collects data at five-minute intervals through out the day. The data set consists of two months of data from an anonymous individual collected during the months of October and November 2012 and include the number of steps taken in five-minute intervals each day.
 
 ## Loading and preprocessing the data
 
@@ -12,10 +12,12 @@ This assignment makes use of data from a personal activity monitoring device. Th
 data <- read.csv("activity.csv")
 summary(data)
 ```
-Initially, time is represented in military time intervals.  
-  
-To make time more readable, I have changed the class to POSIXlt through strptime() and formatted it %H:%M. Here is the resulting table:
+The date is initially stored as a factor. It is converted to Date() format.
+
+Time is represented in military time intervals. To make time more readable, I have changed the class to POSIXlt through strptime() and formatted it %H:%M. Here is the resulting table:
 ```{r}
+data$date <- as.Date(data$date)
+
 data$interval <- as.character(data$interval)
 for (i in 1:length(data$interval)) {
     if (nchar(data$interval[i]) == 1){
@@ -27,6 +29,7 @@ for (i in 1:length(data$interval)) {
     }
 }
 data$interval <- format(strptime(data$interval, format = "%H%M"), format = "%H:%M")
+
 head(data)
 ```
 
@@ -49,24 +52,30 @@ sumsteps / days
 Let's take a look at groupings by each of the `r days` days.  
 
 ```{r}
-avgdata <- data %>%
+avgdays <- data %>%
     group_by(date) %>%
     summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
-head(avgdata)
-hist(avgdata$total_steps, breaks = 20)
+head(avgdays)
+hist(avgdays$total_steps, breaks = 20)
 ```
   
-The mean of total number of steps per day is `r mean(avgdata$total_steps, na.rm = TRUE)` and the median of the total number of steps per day is `r median(avgdata$total_steps, na.rm = TRUE)`.
+The mean of total number of steps per day is `r mean(avgdays$total_steps, na.rm = TRUE)` and the median of the total number of steps per day is `r median(avgdays$total_steps, na.rm = TRUE)`.
 
 ## What is the average daily activity pattern?
 
+Let's look at the average of each interval across all days.
+
 ```{r}
-plot.ts(avgdata$total_steps)
-max_steps_date <- data[which.max(data$steps), 'date'] 
-max_steps_time <- data[which.max(data$steps), 'interval']
+avgintervals <- data %>%
+    group_by(interval) %>%
+    summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
+head(avgintervals)
+plot.ts(avgintervals$avg_steps, xlab = "Time Intervals", ylab = "Average Steps per Day")
+
+max_intervalsteps <- avgintervals[which.max(avgintervals$avg_steps),]
 ```
 
-On `r max_steps_date` at `r max_steps_time` was when the maximum number of steps was taken during a 5 minute interval over the course of the data set.
+The interval with the greatest number of steps over the course of the data set was at `r max_intervalsteps$interval` with an average of `r max_intervalsteps$avg_steps` steps.
 
 ## Inputing missing values
 
@@ -77,19 +86,36 @@ sum(is.na(data$steps))
 Let's do something meaningful about these missing elements.
 
 ```{r}
-data[is.na(data$steps), 'steps'] <- sumsteps / days / 288
+data[is.na(data$steps), 'steps'] <- mean(avgintervals$avg_steps)
 sum(is.na(data$steps))
 ```
 
 We took the average steps per interval of all days and replaced the NAs.
 
 ```{r}
-avgdata <- data %>%
+avgdays <- data %>%
     group_by(date) %>%
     summarize(total_steps = sum(steps, na.rm = TRUE), avg_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
-hist(avgdata$total_steps, breaks = 20)
-head(avgdata)
+hist(avgdays$total_steps, breaks = 20)
+head(avgdays)
 ```
-This changes the data dramatically on days that previously didn;t have info as you can see.
+This changes the data dramatically on days that previously didn't have info as you can see.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+avgdays[,"day"] <- c(weekdays(avgdays$date))
+
+ifelse(avgdays$day == "Saturday" | avgdays$day == "Sunday", avgdays$day <- "Weekend", avgdays$day <- "Weekday")
+levels(avgdays$day)
+avgdays <- avgdays %>% group_by(day)
+table(avgdays$day)
+library(lattice)
+xyplot(avgdays$total_steps ~ avgdays$day, 
+           data = avgdays,
+           type = "l",
+           xlab = "Interval",
+           ylab = "Number of steps",
+           layout=c(1,2))
+
+```
